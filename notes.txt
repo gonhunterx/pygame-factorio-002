@@ -1,0 +1,16 @@
+
+
+TODO:
+- Fix menu 
+- update graphics for items inside inv 
+- Animate character for walking and eventually mining
+
+IN PROGRESS: 
+- Fix the furnace 
+    - make it so that it counts the inventorys contents and 
+        increments its values by the amounts in your inv 
+
+        Since right now the only goal is to make iron bars 
+
+
+COMPLETE:

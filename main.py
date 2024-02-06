@@ -63,6 +63,19 @@ class Furnace(py.sprite.Sprite):
         self.amount_of_coal = 0 
         self.amount_of_iron = 0
         self.rect = self.image.get_rect()
+        
+    def __iter__(self):
+        return self 
+    
+    def __next__(self):
+        if self.index >= len(self.items):
+            raise StopIteration
+        item = self.items[self.index]
+        self.index += 1
+        return item 
+    
+    def increment(self, item):
+        self.items.append(item)
     
     def deposit(self, item):
         if item == 'coal':
@@ -103,6 +116,25 @@ class CoalVein(py.sprite.Sprite):
         self.amount_of_coal = 500
         self.rect = self.image.get_rect()
 
+class Transfer:
+    def __init__(self, inventory, furnace):
+        self.inventory = inventory 
+        self.furnace = furnace 
+        self.items = iter(self.inventory.items)
+        
+    def __iter__(self):
+        return self 
+    
+    def __next__(self):
+        try:
+            item = next(self.items)
+            amount = self.inventory.items[item]
+            self.inventory.items[item] = 0
+            self.furnace.add(item, amount)
+            return item, amount 
+        except StopIteration:
+            raise StopIteration
+
 # INVENTORY
 class Inventory:
     def __init__(self, rows, cols):
@@ -110,7 +142,18 @@ class Inventory:
         self.is_open = False 
         self.iron_ore_image = py.transform.scale(py.image.load("assets/iron_stone.png").convert(), (28, 28))
         self.coal_image = py.transform.scale(py.image.load("assets/coal_rock.png").convert(), (28, 28))
-
+        self.items = {'coal': 0, 'iron ore': 0}
+        
+    def increment(self, item, amount=1):
+        if item in self.items:
+            self.items[item] += amount
+        else:
+            raise ValueError(f'Invalid item: {item}')
+    
+    def __iter__(self):
+        for item, count in self.items.items():
+            yield item, count
+    
     def __contains__(self, item):
         for row in self.grid:
             if item in row:
@@ -181,7 +224,17 @@ class Player(py.sprite.Sprite):
         self.last_mine_time  = py.time.get_ticks()
         self.message_log = MessageLog()
         self.last_deposit_time = py.time.get_ticks()
-       
+        self.index = 0 
+    
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        if self.index >= len(self.items):
+            raise StopIteration
+        item = self.items[self.index]
+        self.index += 1
+        return item 
         
     def user_input(self):
         self.velocity_x = 0
@@ -215,12 +268,20 @@ class Player(py.sprite.Sprite):
             print(f'Inventory full. Cannot mine more {ore_type}')
     
     def deposit(self, furnace):
-        if 'coal' in self.inventory:
-            self.inventory.remove_item('coal')
-            furnace.deposit('coal')
-        if 'iron ore' in self.inventory:
-            self.inventory.remove_item('iron ore')
-            furnace.deposit('iron ore')
+        # COUNTER FOR IRON ORE AND COAL INSIDE INV 
+        for item in self.inventory.__iter__():
+            coal_inside_inv = 0
+            iron_ore_inside_inv = 0 
+            if item == 'coal':
+                coal_inside_inv += 1
+            elif item == 'iron ore':
+                iron_ore_inside_inv += 1
+        # REMOVE AND DEPOSIT 
+        self.inventory.remove_item('coal')
+        furnace.deposit('coal')
+    
+        self.inventory.remove_item('iron ore')
+        furnace.deposit('iron ore')
     
     def update(self):
         self.user_input()
@@ -240,16 +301,8 @@ class Player(py.sprite.Sprite):
             self.in_factory = False 
 
 # FURNACE COLLISION
-        try:
-            if player.rect.colliderect(furnace.rect):
-                print("furnace+")
-                if py.mouse.get_pressed()[0]:
-                    current_time = py.time.get_ticks()
-                    if current_time - self.last_deposit_time > 1000:
-                        self.deposit(furnace)
-                        self.last_deposit_time = current_time
-        except Exception as e:
-            print(f"Error at{e}")
+        if self.rect.colliderect(furnace.rect) and keys[py.K_f]:
+            self.transfer_items_to_furnace()
         
         try:
             for ore in [iron_ore1, iron_ore2, coal_vein1, coal_vein2]:
@@ -275,6 +328,15 @@ class Player(py.sprite.Sprite):
                             break
         except Exception as e:
             print(f"Error at {e}")  
+            
+    def transfer_items_to_furnace(self):
+        transfer = Transfer(self.inventory, furnace)
+        try:
+            while True: # preform transfers until no more items 
+                next(transfer)
+                self.message_log.add_message("Transferred item to furnace.")
+        except StopIteration:
+            pass 
         
 
 player = Player()
