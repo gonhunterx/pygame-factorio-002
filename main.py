@@ -63,7 +63,20 @@ class Furnace(py.sprite.Sprite):
         self.amount_of_coal = 0 
         self.amount_of_iron = 0
         self.rect = self.image.get_rect()
+    
+    def deposit(self, item):
+        if item == 'coal':
+            self.amount_of_coal += 1
+        elif item == 'iron ore':
+            self.amount_of_iron += 1
+            
+    def draw(self, window):
+        coal_label = font.render(f'Coal: {self.amount_of_coal}', True, (255, 255, 255))
+        iron_label = font.render(f'Iron: {self.amount_of_iron}', True, (255, 255, 255))
 
+        window.blit(coal_label, (self.rect.x, self.rect.y - 40))
+        window.blit(iron_label, (self.rect.x, self.rect.y - 20))
+        
 # DISPENSED ITEM
 class IronBar(py.sprite.Sprite):
     def __init__(self):
@@ -201,6 +214,14 @@ class Player(py.sprite.Sprite):
             self.message_log.add_message(f'Inventory full. Cannot mine more {ore_type}')
             print(f'Inventory full. Cannot mine more {ore_type}')
     
+    def deposit(self, furnace):
+        if 'coal' in self.inventory:
+            self.inventory.remove_item('coal')
+            furnace.deposit('coal')
+        if 'iron ore' in self.inventory:
+            self.inventory.remove_item('iron ore')
+            furnace.deposit('iron ore')
+    
     def update(self):
         self.user_input()
         self.move()
@@ -222,17 +243,11 @@ class Player(py.sprite.Sprite):
         try:
             if player.rect.colliderect(furnace.rect):
                 print("furnace+")
-                if py.mouse.get_pressed()[0] and 'iron ore' in self.inventory and 'coal' in self.inventory:
+                if py.mouse.get_pressed()[0]:
                     current_time = py.time.get_ticks()
-                    if current_time - self.last_deposit_time > 1000:  # 1000 ms = 1 second
-                        if 'coal' in self.inventory:
-                            self.inventory.remove_item('coal')
-                            furnace.amount_of_coal += 1
-                            self.last_deposit_time = current_time
-                        if 'iron ore' in self.inventory:
-                            self.inventory.remove_item('iron ore')
-                            furnace.amount_of_iron += 1
-                            self.last_deposit_time = current_time
+                    if current_time - self.last_deposit_time > 1000:
+                        self.deposit(furnace)
+                        self.last_deposit_time = current_time
         except Exception as e:
             print(f"Error at{e}")
         
@@ -292,6 +307,7 @@ while True:
     window.blit(background, (0, 0))
     window.blit(factory.image, factory.pos)
     window.blit(furnace.image, furnace.rect.topleft)
+    furnace.draw(window)
 
     # objects
     window.blit(iron_ore1.image, iron_ore1.rect.topleft)
